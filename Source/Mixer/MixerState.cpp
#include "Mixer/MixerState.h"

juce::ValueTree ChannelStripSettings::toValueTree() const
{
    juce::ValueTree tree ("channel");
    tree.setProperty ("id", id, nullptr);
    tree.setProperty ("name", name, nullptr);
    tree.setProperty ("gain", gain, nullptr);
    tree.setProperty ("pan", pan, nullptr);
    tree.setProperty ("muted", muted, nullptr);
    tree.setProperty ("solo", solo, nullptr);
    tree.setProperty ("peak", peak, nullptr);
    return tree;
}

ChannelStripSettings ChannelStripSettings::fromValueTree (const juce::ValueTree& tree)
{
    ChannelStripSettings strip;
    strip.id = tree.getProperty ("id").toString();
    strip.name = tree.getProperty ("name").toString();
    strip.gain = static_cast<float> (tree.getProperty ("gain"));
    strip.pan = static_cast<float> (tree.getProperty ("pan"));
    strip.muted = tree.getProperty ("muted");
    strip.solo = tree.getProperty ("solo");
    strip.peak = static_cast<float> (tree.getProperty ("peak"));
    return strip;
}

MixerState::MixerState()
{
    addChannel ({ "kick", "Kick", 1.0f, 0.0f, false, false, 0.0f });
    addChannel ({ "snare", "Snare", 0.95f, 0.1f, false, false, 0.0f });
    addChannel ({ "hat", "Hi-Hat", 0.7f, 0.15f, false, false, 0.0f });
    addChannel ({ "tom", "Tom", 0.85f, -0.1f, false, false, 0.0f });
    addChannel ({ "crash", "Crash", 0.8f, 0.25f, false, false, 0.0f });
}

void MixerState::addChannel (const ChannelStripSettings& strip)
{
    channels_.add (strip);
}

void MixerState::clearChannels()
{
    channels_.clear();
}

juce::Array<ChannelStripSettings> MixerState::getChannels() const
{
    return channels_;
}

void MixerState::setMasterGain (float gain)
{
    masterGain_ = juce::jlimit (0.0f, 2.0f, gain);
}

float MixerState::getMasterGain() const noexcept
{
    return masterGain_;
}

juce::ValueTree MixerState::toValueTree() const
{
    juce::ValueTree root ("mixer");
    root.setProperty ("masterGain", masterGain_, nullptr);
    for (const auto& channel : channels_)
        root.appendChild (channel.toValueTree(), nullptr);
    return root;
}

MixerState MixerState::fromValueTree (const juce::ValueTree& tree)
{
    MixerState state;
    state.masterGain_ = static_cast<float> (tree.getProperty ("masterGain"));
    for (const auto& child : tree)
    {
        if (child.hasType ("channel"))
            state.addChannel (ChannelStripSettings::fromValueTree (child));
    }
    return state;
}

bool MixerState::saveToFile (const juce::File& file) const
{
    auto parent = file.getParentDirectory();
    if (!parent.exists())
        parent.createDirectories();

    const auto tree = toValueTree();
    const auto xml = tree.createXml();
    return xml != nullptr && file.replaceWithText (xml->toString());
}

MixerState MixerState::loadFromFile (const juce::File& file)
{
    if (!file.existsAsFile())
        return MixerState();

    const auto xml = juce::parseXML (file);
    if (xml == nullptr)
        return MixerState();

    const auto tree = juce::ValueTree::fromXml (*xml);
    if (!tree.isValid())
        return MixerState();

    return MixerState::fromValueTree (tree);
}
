@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.22)
 
-project(STICKTONE-BY-WAVEY-BEAT VERSION 0.1.0 LANGUAGES CXX)
+project(STICKTONE_BY_WAVEY_BEAT VERSION 0.1.0 LANGUAGES CXX)
 
 include(FetchContent)
 
