@@ -2,6 +2,7 @@
 #include <juce_core/juce_core.h>
 
 #include "Audio/DrumSynth.h"
+#include "Kit/DrumKit.h"
 
 int main()
 {
@@ -25,6 +26,15 @@ int main()
     const auto type = DrumSynth::getDrumTypeForMidi (42);
     if (type != DrumSynth::DrumType::closedHat)
         return 4;
+
+    auto kit = DrumKitDefinition::createDefault();
+    if (kit.getName() != "Wavey Beat Starter Kit")
+        return 5;
+
+    const auto savedState = kit.toValueTree();
+    auto loaded = DrumKitDefinition::fromValueTree (savedState);
+    if (loaded.getName() != "Wavey Beat Starter Kit")
+        return 6;
 
     return 0;
 }
