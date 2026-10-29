@@ -11,9 +11,12 @@ public:
     {
         kick,
         snare,
-        hat,
+        closedHat,
+        openHat,
         tom,
-        crash
+        crash,
+        ride,
+        percussion
     };
 
     struct Voice
@@ -30,6 +33,7 @@ public:
 
     void prepareToPlay (double sampleRate, int samplesPerBlock);
     void trigger (int midiNoteNumber, float velocity);
+    void trigger (DrumType type, float velocity);
     void render (juce::AudioBuffer<float>& buffer,
                  const juce::MidiBuffer& midi,
                  int startSample,
@@ -38,6 +42,8 @@ public:
     void setMasterGain (float gain);
     [[nodiscard]] float getMasterGain() const noexcept;
     [[nodiscard]] static juce::String getNameForMidi (int midiNote);
+    [[nodiscard]] static DrumType getDrumTypeForMidi (int midiNote);
+    [[nodiscard]] static int getMidiNoteForDrumType (DrumType type);
 
 private:
     double sampleRate_ = 44100.0;

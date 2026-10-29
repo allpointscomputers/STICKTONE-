@@ -1,16 +1,30 @@
-# Feature Status
+#include <juce_audio_basics/juce_audio_basics.h>
+#include <juce_core/juce_core.h>
 
-| Area | Status | Notes |
-|---|---|---|
-| Project bootstrap | Implemented | Repository now contains a buildable JUCE foundation. |
-| CMake + JUCE build | Implemented | CMake downloads JUCE automatically. |
-| Standalone app | Implemented | Basic app shell with audible drum triggers. |
-| Drum synthesis fallback | Implemented | Kick/snare/hat/tom/crash voices are functional. |
-| MIDI note mapping | Implemented | Basic note names and mapping logic exist. |
-| Sample import | Not started | Planned after baseline stability. |
-| Mixer/effects | Not started | Planned after core engine is stable. |
-| Groove browser | Not started | Planned after kit and engine work. |
-| Tap2Find | Not started | Planned after groove library exists. |
-| Song Creator | Not started | Planned with arrangement system. |
-| VST3/AU plugin validation | Blocked | Requires target platform validation. |
-| Packaging | Not started | Pending final product completion. |
+#include "Audio/DrumSynth.h"
+
+int main()
+{
+    juce::AudioBuffer<float> buffer (2, 256);
+    buffer.clear();
+
+    DrumSynth synth;
+    synth.prepareToPlay (44100.0, 256);
+    synth.trigger (36, 0.9f);
+    synth.render (buffer, juce::MidiBuffer(), 0, 256);
+
+    if (buffer.getMagnitude (0, 0, 256) <= 0.0f)
+        return 1;
+
+    if (DrumSynth::getNameForMidi (36) != "Kick")
+        return 2;
+
+    if (DrumSynth::getNameForMidi (38) != "Snare")
+        return 3;
+
+    const auto type = DrumSynth::getDrumTypeForMidi (42);
+    if (type != DrumSynth::DrumType::closedHat)
+        return 4;
+
+    return 0;
+}

@@ -1,157 +1,301 @@
-#include <juce_audio_basics/juce_audio_basics.h>
-#include <juce_audio_devices/juce_audio_devices.h>
-#include <juce_audio_utils/juce_audio_utils.h>
-#include <juce_gui_basics/juce_gui_basics.h>
-
 #include "Audio/DrumSynth.h"
 
 namespace
 {
-    class DrumAudioSource final : public juce::AudioSource
+    constexpr double pi = 3.14159265358979323846;
+
+    DrumSynth::DrumType noteToType (int midiNote)
     {
-    public:
-        void prepareToPlay (int samplesPerBlockExpected, double sampleRate) override
+        switch (midiNote)
         {
-            synth_.prepareToPlay (sampleRate, samplesPerBlockExpected);
+            case 35:
+            case 36:
+            case 37:
+            case 41:
+            case 43:
+            case 44:
+            case 45:
+            case 47:
+            case 50:
+            case 52:
+            case 53:
+            case 54:
+            case 55:
+            case 56:
+            case 58:
+            case 59:
+            case 60:
+            case 61:
+            case 62:
+            case 63:
+            case 64:
+            case 65:
+            case 67:
+            case 69:
+            case 71:
+                return DrumSynth::DrumType::kick;
+            case 38:
+            case 40:
+            case 48:
+            case 51:
+                return DrumSynth::DrumType::snare;
+            case 42:
+            case 46:
+            case 70:
+            case 72:
+                return DrumSynth::DrumType::closedHat;
+            case 39:
+            case 57:
+            case 68:
+                return DrumSynth::DrumType::crash;
+            case 49:
+            case 66:
+            case 73:
+            case 74:
+            case 75:
+            case 76:
+            case 77:
+            case 78:
+            case 79:
+            case 80:
+                return DrumSynth::DrumType::tom;
+            case 81:
+            case 82:
+            case 83:
+            case 84:
+            case 85:
+            case 86:
+            case 87:
+            case 88:
+                return DrumSynth::DrumType::ride;
+            default:
+                return DrumSynth::DrumType::percussion;
         }
-
-        void releaseResources() override {}
-
-        void getNextAudioBlock (const juce::AudioSourceChannelInfo& bufferToFill) override
-        {
-            juce::AudioBuffer<float> temp (2, bufferToFill.numSamples);
-            temp.clear();
-            synth_.render (temp, juce::MidiBuffer(), 0, bufferToFill.numSamples);
-
-            for (int channel = 0; channel < temp.getNumChannels(); ++channel)
-            {
-                const auto* source = temp.getReadPointer (channel);
-                auto* dest = bufferToFill.buffer->getWritePointer (channel, bufferToFill.startSample);
-                for (int sample = 0; sample < bufferToFill.numSamples; ++sample)
-                    dest[sample] = source[sample];
-            }
-        }
-
-        void trigger (int note, float velocity)
-        {
-            synth_.trigger (note, velocity);
-        }
-
-    private:
-        DrumSynth synth_;
-    };
-
-    class StickToneMainComponent final : public juce::Component
-    {
-    public:
-        StickToneMainComponent()
-        {
-            setSize (560, 360);
-
-            kickButton_.setButtonText ("Kick");
-            kickButton_.onClick = [this] { triggerDrum (36, 0.9f); };
-            addAndMakeVisible (kickButton_);
-
-            snareButton_.setButtonText ("Snare");
-            snareButton_.onClick = [this] { triggerDrum (38, 0.8f); };
-            addAndMakeVisible (snareButton_);
-
-            hatButton_.setButtonText ("Hi-Hat");
-            hatButton_.onClick = [this] { triggerDrum (42, 0.7f); };
-            addAndMakeVisible (hatButton_);
-
-            masterSlider_.setRange (0.0, 1.5, 0.01);
-            masterSlider_.setValue (0.8);
-            masterSlider_.onValueChange = [this] { drumSource_.synth_.setMasterGain(static_cast<float>(masterSlider_.getValue())); };
-            addAndMakeVisible (masterSlider_);
-
-            deviceManager_ = std::make_unique<juce::AudioDeviceManager>();
-            deviceManager_->initialiseWithDefaultDevices (2, 2);
-            audioSourcePlayer_.setSource (&drumSource_);
-            deviceManager_->addAudioCallback (&audioSourcePlayer_);
-        }
-
-        ~StickToneMainComponent() override
-        {
-            deviceManager_->removeAudioCallback (&audioSourcePlayer_);
-            deviceManager_->closeAudioDevice();
-        }
-
-        void paint (juce::Graphics& g) override
-        {
-            g.fillAll (juce::Colours::black);
-            g.setColour (juce::Colours::whitesmoke);
-            g.setFont (24.0f);
-            g.drawText ("STICKTONE BY WAVEY BEAT",
-                        juce::Rectangle<float> (20.0f, 18.0f, 500.0f, 32.0f),
-                        juce::Justification::left);
-            g.setFont (14.0f);
-            g.drawText ("Procedural fallback drum voices for the initial buildable slice.",
-                        juce::Rectangle<float> (20.0f, 52.0f, 500.0f, 20.0f),
-                        juce::Justification::left);
-        }
-
-        void resized() override
-        {
-            const auto buttonWidth = (getWidth() - 80) / 3;
-            kickButton_.setBounds (20, 110, buttonWidth, 120);
-            snareButton_.setBounds (30 + buttonWidth, 110, buttonWidth, 120);
-            hatButton_.setBounds (40 + (buttonWidth * 2), 110, buttonWidth, 120);
-            masterSlider_.setBounds (20, 250, getWidth() - 40, 30);
-        }
-
-    private:
-        void triggerDrum (int midiNote, float velocity)
-        {
-            drumSource_.trigger (midiNote, velocity);
-        }
-
-        juce::TextButton kickButton_ { "Kick" };
-        juce::TextButton snareButton_ { "Snare" };
-        juce::TextButton hatButton_ { "Hi-Hat" };
-        juce::Slider masterSlider_;
-        DrumAudioSource drumSource_;
-        juce::AudioSourcePlayer audioSourcePlayer_;
-        std::unique_ptr<juce::AudioDeviceManager> deviceManager_;
-    };
+    }
 }
 
-class StickToneApplication final : public juce::JUCEApplication
+DrumSynth::DrumSynth()
 {
-public:
-    StickToneApplication() = default;
+    voices_.resize (48);
+}
 
-    const juce::String getName() override { return "STICKTONE BY WAVEY BEAT"; }
-    const juce::String getApplicationName() override { return getName(); }
-    bool moreThanOneInstanceAllowed() override { return true; }
+void DrumSynth::prepareToPlay (double sampleRate, int samplesPerBlock)
+{
+    sampleRate_ = sampleRate;
+    samplesPerBlock_ = samplesPerBlock;
+    for (auto& voice : voices_)
+        voice.active = false;
+}
 
-    void initialise (const juce::String&) override
+void DrumSynth::trigger (int midiNoteNumber, float velocity)
+{
+    const auto safeVelocity = juce::jlimit (0.0f, 1.0f, velocity);
+    const auto type = getDrumTypeForMidi (midiNoteNumber);
+    trigger (type, safeVelocity);
+}
+
+void DrumSynth::trigger (DrumType type, float velocity)
+{
+    const auto safeVelocity = juce::jlimit (0.0f, 1.0f, velocity);
+
+    for (auto& voice : voices_)
     {
-        mainWindow_ = std::make_unique<juce::DocumentWindow> (
-            "STICKTONE BY WAVEY BEAT",
-            juce::Colours::black,
-            juce::DocumentWindow::allButtons);
+        if (!voice.active)
+        {
+            voice.type = type;
+            voice.frequency = juce::MidiMessage::getMidiNoteInHertz (getMidiNoteForDrumType (type));
+            if (voice.frequency <= 0.0)
+                voice.frequency = 100.0;
+            voice.phase = 0.0;
+            voice.amplitude = safeVelocity;
+            voice.age = 0.0;
+            voice.active = true;
+            return;
+        }
+    }
+}
 
-        mainWindow_->setUsingNativeTitleBar (true);
-        mainWindow_->setContentOwned (new StickToneMainComponent(), true);
-        mainWindow_->centreWithSize (560, 340);
-        mainWindow_->setVisible (true);
+void DrumSynth::render (juce::AudioBuffer<float>& buffer,
+                       const juce::MidiBuffer& midi,
+                       int startSample,
+                       int numSamples)
+{
+    if (numSamples <= 0)
+        return;
+
+    juce::ignoreUnused (midi);
+
+    for (auto& voice : voices_)
+    {
+        if (!voice.active)
+            continue;
+
+        for (int sample = 0; sample < numSamples; ++sample)
+        {
+            const double age = voice.age;
+            const double env = std::max (0.0, 1.0 - (age / 0.35));
+            double nextSample = 0.0;
+
+            switch (voice.type)
+            {
+                case DrumType::kick:
+                    nextSample = std::sin (voice.phase * 2.0 * pi * std::max (20.0, voice.frequency * (1.0 - 0.7 * env)));
+                    nextSample *= std::max (0.0, 1.0 - (age / 0.28));
+                    break;
+                case DrumType::snare:
+                    nextSample = (juce::Random::getSystemRandom().nextFloat() * 2.0f - 1.0f) * 0.85;
+                    nextSample += 0.4 * std::sin (voice.phase * 2.0 * pi * 180.0);
+                    nextSample *= std::max (0.0, 1.0 - (age / 0.13));
+                    break;
+                case DrumType::closedHat:
+                    nextSample = (juce::Random::getSystemRandom().nextFloat() * 2.0f - 1.0f) * 1.25;
+                    nextSample *= std::exp (-7.0 * age);
+                    break;
+                case DrumType::openHat:
+                    nextSample = (juce::Random::getSystemRandom().nextFloat() * 2.0f - 1.0f) * 1.5;
+                    nextSample *= std::exp (-3.5 * age);
+                    break;
+                case DrumType::tom:
+                    nextSample = std::sin (voice.phase * 2.0 * pi * voice.frequency);
+                    nextSample *= std::max (0.0, 1.0 - (age / 0.18));
+                    break;
+                case DrumType::crash:
+                    nextSample = (juce::Random::getSystemRandom().nextFloat() * 2.0f - 1.0f) * 1.6;
+                    nextSample *= std::exp (-2.2 * age);
+                    break;
+                case DrumType::ride:
+                    nextSample = std::sin (voice.phase * 2.0 * pi * voice.frequency * 0.7);
+                    nextSample *= std::exp (-4.0 * age);
+                    break;
+                case DrumType::percussion:
+                    nextSample = std::sin (voice.phase * 2.0 * pi * voice.frequency * 0.5);
+                    nextSample *= std::max (0.0, 1.0 - (age / 0.22));
+                    break;
+            }
+
+            const auto gain = static_cast<float> (voice.amplitude * env * masterGain_ * 0.6f);
+            const auto index = startSample + sample;
+            for (int channel = 0; channel < buffer.getNumChannels(); ++channel)
+                buffer.addSample (channel, index, static_cast<float> (nextSample * gain));
+
+            voice.phase += 1.0;
+            voice.age += 1.0 / sampleRate_;
+
+            if (voice.age > 0.38)
+                voice.active = false;
+        }
+    }
+}
+
+void DrumSynth::setMasterGain (float gain)
+{
+    masterGain_ = juce::jlimit (0.0f, 2.0f, gain);
+}
+
+float DrumSynth::getMasterGain() const noexcept
+{
+    return masterGain_;
+}
+
+juce::String DrumSynth::getNameForMidi (int midiNote)
+{
+    switch (getDrumTypeForMidi (midiNote))
+    {
+        case DrumType::kick: return "Kick";
+        case DrumType::snare: return "Snare";
+        case DrumType::closedHat: return "Closed Hat";
+        case DrumType::openHat: return "Open Hat";
+        case DrumType::tom: return "Tom";
+        case DrumType::crash: return "Crash";
+        case DrumType::ride: return "Ride";
+        case DrumType::percussion: return "Percussion";
     }
 
-    void shutdown() override
+    return "Drum";
+}
+
+DrumSynth::DrumType DrumSynth::getDrumTypeForMidi (int midiNote)
+{
+    switch (midiNote)
     {
-        mainWindow_ = nullptr;
+        case 35:
+        case 36:
+        case 37:
+        case 41:
+        case 43:
+        case 44:
+        case 45:
+        case 47:
+        case 50:
+        case 52:
+        case 53:
+        case 54:
+        case 55:
+        case 56:
+        case 58:
+        case 59:
+        case 60:
+        case 61:
+        case 62:
+        case 63:
+        case 64:
+        case 65:
+        case 67:
+        case 69:
+        case 71:
+            return DrumType::kick;
+        case 38:
+        case 40:
+        case 48:
+        case 51:
+            return DrumType::snare;
+        case 42:
+        case 46:
+        case 70:
+        case 72:
+            return DrumType::closedHat;
+        case 39:
+        case 57:
+        case 68:
+            return DrumType::crash;
+        case 49:
+        case 66:
+        case 73:
+        case 74:
+        case 75:
+        case 76:
+        case 77:
+        case 78:
+        case 79:
+        case 80:
+            return DrumType::tom;
+        case 81:
+        case 82:
+        case 83:
+        case 84:
+        case 85:
+        case 86:
+        case 87:
+        case 88:
+            return DrumType::ride;
+        default:
+            return DrumType::percussion;
+    }
+}
+
+int DrumSynth::getMidiNoteForDrumType (DrumType type)
+{
+    switch (type)
+    {
+        case DrumType::kick: return 36;
+        case DrumType::snare: return 38;
+        case DrumType::closedHat: return 42;
+        case DrumType::openHat: return 46;
+        case DrumType::tom: return 48;
+        case DrumType::crash: return 49;
+        case DrumType::ride: return 51;
+        case DrumType::percussion: return 53;
     }
 
-    void systemRequestedQuit() override
-    {
-        quit();
-    }
-
-    void anotherInstanceStarted (const juce::String&) override {}
-
-private:
-    std::unique_ptr<juce::DocumentWindow> mainWindow_;
-};
-
-START_JUCE_APPLICATION (StickToneApplication)
+    return 36;
+}
