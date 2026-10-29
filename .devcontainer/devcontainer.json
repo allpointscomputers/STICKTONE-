@@ -1,0 +1,30 @@
+{
+  "name": "STICKTONE JUCE Dev",
+  "image": "mcr.microsoft.com/devcontainers/cpp:1-ubuntu-22.04",
+  "containerEnv": {
+    "JUCE_DIR": "/workspaces/juce",
+    "CMAKE_BUILD_PARALLEL_LEVEL": "4",
+    "DISPLAY": ":1"
+  },
+  "postCreateCommand": "bash .devcontainer/post-create.sh",
+  "customizations": {
+    "vscode": {
+      "settings": {
+        "cmake.configureOnOpen": true,
+        "cmake.generator": "Ninja",
+        "C_Cpp.default.configurationProvider": "ms-vscode.cmake-tools"
+      },
+      "extensions": [
+        "ms-vscode.cpptools",
+        "ms-vscode.cpptools-extension-pack",
+        "ms-vscode.cmake-tools",
+        "twxs.cmake",
+        "matepek.vscode-catch2-test-adapter"
+      ]
+    }
+  },
+  "forwardPorts": [
+    3000,
+    8080
+  ]
+}
