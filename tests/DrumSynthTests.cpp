@@ -1,65 +1,31 @@
-cmake_minimum_required(VERSION 3.22)
+# STICKTONE BY WAVEY BEAT
 
-project(STICKTONE-BY-WAVEY-BEAT VERSION 0.1.0 LANGUAGES CXX)
+A JUCE-based drum production foundation. This repository is intentionally a staged implementation rather than a finished commercial plugin. It now includes a working standalone app shell, drum synthesis, kit state, sample-library scaffolding, groove metadata, and mixer/preset support.
 
-include(FetchContent)
+## Current status
 
-set(JUCE_BUILD_EXTRAS OFF)
-set(JUCE_BUILD_EXAMPLES OFF)
-set(JUCE_USE_CURL OFF)
+- Standalone JUCE app foundation: implemented
+- Drum synthesis: implemented
+- Kit state / persistence: implemented
+- Sample library foundation: implemented
+- Groove metadata foundation: implemented
+- Mixer and preset foundation: implemented
+- Full plugin validation: pending on a real host/toolchain
 
-FetchContent_Declare(
-    juce
-    GIT_REPOSITORY https://github.com/juce-framework/JUCE.git
-    GIT_TAG 8.0.8
-)
+## Build
 
-FetchContent_MakeAvailable(juce)
+```bash
+cmake -B build -S .
+cmake --build build
+```
 
-juce_add_gui_app(StickToneApp
-    COMPANY_NAME "Wavey Beat"
-    PRODUCT_NAME "STICKTONE BY WAVEY BEAT"
-    VERSION ${PROJECT_VERSION}
-)
+## Tests
 
-target_compile_features(StickToneApp PRIVATE cxx_std_17)
-target_include_directories(StickToneApp PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/Source)
+```bash
+ctest --test-dir build --output-on-failure
+```
 
-target_sources(StickToneApp PRIVATE
-    Source/Main.cpp
-    Source/Audio/DrumSynth.cpp
-    Source/Kit/DrumKit.cpp
-)
+## Notes
 
-target_link_libraries(StickToneApp PRIVATE
-    juce::juce_audio_basics
-    juce::juce_audio_devices
-    juce::juce_audio_utils
-    juce::juce_core
-    juce::juce_data_structures
-    juce::juce_events
-    juce::juce_graphics
-    juce::juce_gui_basics
-    juce::juce_gui_extra
-)
+This project is still in active product development. The repo is intentionally structured to evolve toward a larger drum-production workflow without claiming the final product is complete.
 
-juce_generate_juce_header(StickToneApp)
-
-enable_testing()
-
-add_executable(StickToneTests
-    tests/DrumSynthTests.cpp
-    Source/Audio/DrumSynth.cpp
-    Source/Kit/DrumKit.cpp
-)
-
-target_compile_features(StickToneTests PRIVATE cxx_std_17)
-target_include_directories(StickToneTests PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/Source)
-target_link_libraries(StickToneTests PRIVATE
-    juce::juce_audio_basics
-    juce::juce_core
-    juce::juce_data_structures
-    juce::juce_events
-)
-
-add_test(NAME StickToneTests COMMAND StickToneTests)

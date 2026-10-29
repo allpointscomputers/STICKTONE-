@@ -1,30 +1,39 @@
 #include <juce_audio_basics/juce_audio_basics.h>
 #include <juce_core/juce_core.h>
-#include <juce_data_structures/juce_data_structures.h>
 
-#include "SampleLibrary/SampleLibrary.h"
+#include "Mixer/MixerState.h"
+#include "Presets/PresetManager.h"
 
 int main()
 {
-    SampleLibrary library;
+    MixerState mixer;
+    mixer.setMasterGain (0.9f);
 
-    SampleMetadata hit;
-    hit.id = "kick-01";
-    hit.name = "Kick 01";
-    hit.drumPieceId = "kick";
-    hit.filePath = "/samples/kick-01.wav";
-    hit.velocityLayer = 1;
-    hit.roundRobinIndex = 1;
-    hit.sampleRate = 44100;
-    hit.bitDepth = 16;
-    hit.status = SampleMetadata::SampleStatus::valid;
+    ChannelStripSettings kick;
+    kick.id = "kick";
+    kick.name = "Kick";
+    kick.gain = 1.2f;
+    kick.pan = 0.1f;
+    mixer.addChannel (kick);
 
-    library.addSample (hit);
-    if (library.getSamplesForPiece ("kick").size() != 1)
+    if (mixer.getMasterGain() < 0.8f)
         return 1;
 
-    if (library.getStatusSummary().contains ("valid=1") == false)
+    auto roundTrip = MixerState::fromValueTree (mixer.toValueTree());
+    if (roundTrip.getChannels().size() < 1)
         return 2;
+
+    PresetManager manager;
+    PresetData demo;
+    demo.id = "demo";
+    demo.name = "Demo";
+    demo.kitName = "Wavey Beat Starter Kit";
+    demo.mixerState = mixer;
+    manager.addPreset (demo);
+
+    if (manager.getPresetById ("demo").name != "Demo")
+        return 3;
 
     return 0;
 }
+

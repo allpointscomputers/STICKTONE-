@@ -1,41 +1,30 @@
-#pragma once
-
+#include <juce_audio_basics/juce_audio_basics.h>
 #include <juce_core/juce_core.h>
-#include <juce_data_structures/juce_data_structures.h>
 
-struct ChannelStripSettings
+#include "SampleLibrary/SampleLibrary.h"
+
+int main()
 {
-    juce::String id;
-    juce::String name;
-    float gain = 1.0f;
-    float pan = 0.0f;
-    bool muted = false;
-    bool solo = false;
-    float peak = 0.0f;
+    SampleLibrary library;
 
-    juce::ValueTree toValueTree() const;
-    static ChannelStripSettings fromValueTree (const juce::ValueTree& tree);
-};
+    SampleMetadata hit;
+    hit.id = "kick-01";
+    hit.name = "Kick 01";
+    hit.drumPieceId = "kick";
+    hit.filePath = "/samples/kick-01.wav";
+    hit.velocityLayer = 1;
+    hit.roundRobinIndex = 1;
+    hit.sampleRate = 44100;
+    hit.bitDepth = 16;
+    hit.status = SampleMetadata::SampleStatus::valid;
 
-class MixerState
-{
-public:
-    MixerState();
+    library.addSample (hit);
+    if (library.getSamplesForPiece ("kick").size() != 1)
+        return 1;
 
-    void addChannel (const ChannelStripSettings& strip);
-    void clearChannels();
-    [[nodiscard]] juce::Array<ChannelStripSettings> getChannels() const;
+    if (library.getStatusSummary().contains ("valid=1") == false)
+        return 2;
 
-    void setMasterGain (float gain);
-    [[nodiscard]] float getMasterGain() const noexcept;
+    return 0;
+}
 
-    [[nodiscard]] juce::ValueTree toValueTree() const;
-    static MixerState fromValueTree (const juce::ValueTree& tree);
-
-    bool saveToFile (const juce::File& file) const;
-    static MixerState loadFromFile (const juce::File& file);
-
-private:
-    juce::Array<ChannelStripSettings> channels_;
-    float masterGain_ = 1.0f;
-};

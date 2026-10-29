@@ -1,41 +1,174 @@
-# STICKTONE BY WAVEY BEAT
+#include <juce_audio_basics/juce_audio_basics.h>
+#include <juce_audio_devices/juce_audio_devices.h>
+#include <juce_audio_utils/juce_audio_utils.h>
+#include <juce_gui_basics/juce_gui_basics.h>
 
-A minimal JUCE-based foundation for the StickTone drum instrument. This repository now contains a working standalone shell and a deterministic drum synthesis foundation. The goal is to evolve it toward a full commercial drum production workflow without pretending the product is complete.
+#include "Audio/DrumSynth.h"
+#include "Kit/DrumKit.h"
+#include "Mixer/MixerState.h"
+#include "Presets/PresetManager.h"
 
-## Current foundation
+namespace
+{
+    class DrumAudioSource final : public juce::AudioSource
+    {
+    public:
+        void prepareToPlay (int samplesPerBlockExpected, double sampleRate) override
+        {
+            synth_.prepareToPlay (sampleRate, samplesPerBlockExpected);
+        }
 
-- JUCE project via CMake
-- Standalone app shell
-- Drum voice synthesis for kick, snare, hi-hat, tom, and crash
-- MIDI-note mapping helpers
-- Initial automated test scaffold
-- Architecture and implementation planning documents
+        void releaseResources() override {}
 
-## Requirements
+        void getNextAudioBlock (const juce::AudioSourceChannelInfo& bufferToFill) override
+        {
+            juce::AudioBuffer<float> temp (2, bufferToFill.numSamples);
+            temp.clear();
+            synth_.render (temp, juce::MidiBuffer(), 0, bufferToFill.numSamples);
 
-- CMake 3.22 or newer
-- C++17 compiler
-- Internet access is required while CMake fetches JUCE on first configure
+            for (int channel = 0; channel < temp.getNumChannels(); ++channel)
+            {
+                const auto* source = temp.getReadPointer (channel);
+                auto* dest = bufferToFill.buffer->getWritePointer (channel, bufferToFill.startSample);
+                for (int sample = 0; sample < bufferToFill.numSamples; ++sample)
+                    dest[sample] = source[sample];
+            }
+        }
 
-## Build
+        void trigger (int note, float velocity)
+        {
+            synth_.trigger (note, velocity);
+        }
 
-```bash
-cmake -B build -S .
-cmake --build build
-```
+    private:
+        DrumSynth synth_;
+    };
 
-## Run the standalone app
+    class StickToneMainComponent final : public juce::Component
+    {
+    public:
+        StickToneMainComponent()
+        {
+            setSize (620, 420);
 
-```bash
-./build/StickToneApp
-```
+            kickButton_.setButtonText ("Kick");
+            kickButton_.onClick = [this] { triggerDrum (36, 0.92f); };
+            addAndMakeVisible (kickButton_);
 
-## Run tests
+            snareButton_.setButtonText ("Snare");
+            snareButton_.onClick = [this] { triggerDrum (38, 0.88f); };
+            addAndMakeVisible (snareButton_);
 
-```bash
-ctest --test-dir build --output-on-failure
-```
+            hatButton_.setButtonText ("Hi-Hat");
+            hatButton_.onClick = [this] { triggerDrum (42, 0.7f); };
+            addAndMakeVisible (hatButton_);
 
-## Status
+            tomButton_.setButtonText ("Tom");
+            tomButton_.onClick = [this] { triggerDrum (48, 0.78f); };
+            addAndMakeVisible (tomButton_);
 
-This is the first buildable slice of the product and not a final commercial release. Platform-specific plugin targets and expanded sample-based features remain future work.
+            masterSlider_.setRange (0.0, 1.5, 0.01);
+            masterSlider_.setValue (0.8);
+            masterSlider_.onValueChange = [this]
+            {
+                mixerState_.setMasterGain (static_cast<float> (masterSlider_.getValue()));
+            };
+            addAndMakeVisible (masterSlider_);
+
+            deviceManager_ = std::make_unique<juce::AudioDeviceManager>();
+            deviceManager_->initialiseWithDefaultDevices (2, 2);
+            audioSourcePlayer_.setSource (&drumSource_);
+            deviceManager_->addAudioCallback (&audioSourcePlayer_);
+        }
+
+        ~StickToneMainComponent() override
+        {
+            deviceManager_->removeAudioCallback (&audioSourcePlayer_);
+            deviceManager_->closeAudioDevice();
+        }
+
+        void paint (juce::Graphics& g) override
+        {
+            g.fillAll (juce::Colours::black);
+            g.setColour (juce::Colours::whitesmoke);
+            g.setFont (24.0f);
+            g.drawText ("STICKTONE BY WAVEY BEAT",
+                        juce::Rectangle<float> (20.0f, 18.0f, 500.0f, 34.0f),
+                        juce::Justification::left);
+            g.setFont (14.0f);
+            g.drawText ("Kit + mixer + preset foundation",
+                        juce::Rectangle<float> (20.0f, 54.0f, 500.0f, 20.0f),
+                        juce::Justification::left);
+        }
+
+        void resized() override
+        {
+            const auto buttonWidth = (getWidth() - 80) / 4;
+            kickButton_.setBounds (20, 110, buttonWidth, 90);
+            snareButton_.setBounds (30 + buttonWidth, 110, buttonWidth, 90);
+            hatButton_.setBounds (40 + (buttonWidth * 2), 110, buttonWidth, 90);
+            tomButton_.setBounds (50 + (buttonWidth * 3), 110, buttonWidth, 90);
+            masterSlider_.setBounds (20, 230, getWidth() - 40, 28);
+        }
+
+    private:
+        void triggerDrum (int midiNote, float velocity)
+        {
+            drumSource_.trigger (midiNote, velocity);
+        }
+
+        DrumKitDefinition kit_;
+        MixerState mixerState_;
+        PresetManager presetManager_;
+        juce::TextButton kickButton_ { "Kick" };
+        juce::TextButton snareButton_ { "Snare" };
+        juce::TextButton hatButton_ { "Hi-Hat" };
+        juce::TextButton tomButton_ { "Tom" };
+        juce::Slider masterSlider_;
+        DrumAudioSource drumSource_;
+        juce::AudioSourcePlayer audioSourcePlayer_;
+        std::unique_ptr<juce::AudioDeviceManager> deviceManager_;
+    };
+}
+
+class StickToneApplication final : public juce::JUCEApplication
+{
+public:
+    StickToneApplication() = default;
+
+    const juce::String getName() override { return "STICKTONE BY WAVEY BEAT"; }
+    const juce::String getApplicationName() override { return getName(); }
+    bool moreThanOneInstanceAllowed() override { return true; }
+
+    void initialise (const juce::String&) override
+    {
+        mainWindow_ = std::make_unique<juce::DocumentWindow> (
+            "STICKTONE BY WAVEY BEAT",
+            juce::Colours::black,
+            juce::DocumentWindow::allButtons);
+
+        mainWindow_->setUsingNativeTitleBar (true);
+        mainWindow_->setContentOwned (new StickToneMainComponent(), true);
+        mainWindow_->centreWithSize (620, 420);
+        mainWindow_->setVisible (true);
+    }
+
+    void shutdown() override
+    {
+        mainWindow_ = nullptr;
+    }
+
+    void systemRequestedQuit() override
+    {
+        quit();
+    }
+
+    void anotherInstanceStarted (const juce::String&) override {}
+
+private:
+    std::unique_ptr<juce::DocumentWindow> mainWindow_;
+};
+
+START_JUCE_APPLICATION (StickToneApplication)
+
+
