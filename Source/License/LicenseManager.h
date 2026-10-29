@@ -2,6 +2,7 @@
 
 #include <juce_core/juce_core.h>
 #include <juce_events/juce_events.h>
+#include <memory>
 
 class LicenseManager
 {
@@ -14,6 +15,9 @@ public:
 
     void initialise()
     {
+        if (settings_ != nullptr)
+            return;
+
         const auto appData = juce::File::getSpecialLocation (juce::File::userApplicationDataDirectory)
                                  .getChildFile ("WaveyBeat")
                                  .getChildFile ("StickTone");
@@ -48,12 +52,15 @@ public:
         if (isUnlocked())
             return false;
 
-        const auto startedAtMs = settings_ != nullptr ? settings_->getValue ("trialStartedAt").getLargeIntValue() : 0;
-        const auto nowMs = juce::Time::getMillisecondCounterHiRes();
-        const auto launches = settings_ != nullptr ? settings_->getValue ("trialLaunches").getIntValue() : 0;
+        if (settings_ == nullptr)
+            return false;
 
-        const double trialDurationMs = 14.0 * 24.0 * 60.0 * 60.0 * 1000.0;
-        const int trialLaunchLimit = 20;
+        const auto startedAtMs = settings_->getValue ("trialStartedAt").getLargeIntValue();
+        const auto nowMs = juce::Time::getMillisecondCounterHiRes();
+        const auto launches = settings_->getValue ("trialLaunches").getIntValue();
+
+        constexpr double trialDurationMs = 14.0 * 24.0 * 60.0 * 60.0 * 1000.0;
+        constexpr int trialLaunchLimit = 20;
 
         return (nowMs - startedAtMs > trialDurationMs) || (launches >= trialLaunchLimit);
     }
@@ -63,10 +70,9 @@ public:
         if (isUnlocked())
             return;
 
-        if (settings_ == nullptr)
-            initialise();
+        initialise();
 
-        int launches = settings_->getValue ("trialLaunches").getIntValue();
+        const auto launches = settings_->getValue ("trialLaunches").getIntValue();
         settings_->setValue ("trialLaunches", juce::String (launches + 1));
         settings_->save();
     }
@@ -78,10 +84,8 @@ public:
 
     void setLicenseCode (const juce::String& code)
     {
-        if (settings_ == nullptr)
-            initialise();
-
-        settings_->setValue ("licenseCode", code);
+        initialise();
+        settings_->setValue ("licenseCode", code.trim());
         settings_->save();
     }
 
