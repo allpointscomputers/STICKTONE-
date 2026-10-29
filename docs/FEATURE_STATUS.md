@@ -32,6 +32,8 @@ target_sources(StickToneApp PRIVATE
     Source/SampleLibrary/SampleLibrary.cpp
     Source/Groove/GrooveLibrary.cpp
     Source/Core/ProjectState.cpp
+    Source/Mixer/MixerState.cpp
+    Source/Presets/PresetManager.cpp
 )
 
 target_link_libraries(StickToneApp PRIVATE
@@ -53,11 +55,14 @@ enable_testing()
 add_executable(StickToneTests
     tests/DrumSynthTests.cpp
     tests/GrooveLibraryTests.cpp
+    tests/MixerPresetTests.cpp
     Source/Audio/DrumSynth.cpp
     Source/Kit/DrumKit.cpp
     Source/SampleLibrary/SampleLibrary.cpp
     Source/Groove/GrooveLibrary.cpp
     Source/Core/ProjectState.cpp
+    Source/Mixer/MixerState.cpp
+    Source/Presets/PresetManager.cpp
 )
 
 target_compile_features(StickToneTests PRIVATE cxx_std_17)
